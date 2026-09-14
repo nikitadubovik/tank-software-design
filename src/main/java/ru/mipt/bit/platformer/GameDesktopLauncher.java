@@ -42,10 +42,7 @@ public class GameDesktopLauncher implements ApplicationListener {
     private float playerMovementProgress = 1f;
     private float playerRotation;
 
-    private Texture greenTreeTexture;
-    private TextureRegion treeObstacleGraphics;
-    private GridPoint2 treeObstacleCoordinates = new GridPoint2();
-    private Rectangle treeObstacleRectangle = new Rectangle();
+    private Tree tree;
 
     @Override
     public void create() {
@@ -67,11 +64,7 @@ public class GameDesktopLauncher implements ApplicationListener {
         playerCoordinates = new GridPoint2(playerDestinationCoordinates);
         playerRotation = 0f;
 
-        greenTreeTexture = new Texture("images/greenTree.png");
-        treeObstacleGraphics = new TextureRegion(greenTreeTexture);
-        treeObstacleCoordinates = new GridPoint2(1, 3);
-        treeObstacleRectangle = createBoundingRectangle(treeObstacleGraphics);
-        moveRectangleAtTileCenter(groundLayer, treeObstacleRectangle, treeObstacleCoordinates);
+        tree = new Tree("images/greenTree.png", new GridPosition(1, 3), groundLayer);
     }
 
     @Override
@@ -86,7 +79,7 @@ public class GameDesktopLauncher implements ApplicationListener {
         if (Gdx.input.isKeyPressed(UP) || Gdx.input.isKeyPressed(W)) {
             if (isEqual(playerMovementProgress, 1f)) {
                 // check potential player destination for collision with obstacles
-                if (!treeObstacleCoordinates.equals(incrementedY(playerCoordinates))) {
+                if (!tree.getPosition().toGridPoint2().equals(incrementedY(playerCoordinates))) {
                     playerDestinationCoordinates.y++;
                     playerMovementProgress = 0f;
                 }
@@ -95,7 +88,7 @@ public class GameDesktopLauncher implements ApplicationListener {
         }
         if (Gdx.input.isKeyPressed(LEFT) || Gdx.input.isKeyPressed(A)) {
             if (isEqual(playerMovementProgress, 1f)) {
-                if (!treeObstacleCoordinates.equals(decrementedX(playerCoordinates))) {
+                if (!tree.getPosition().toGridPoint2().equals(decrementedX(playerCoordinates))) {
                     playerDestinationCoordinates.x--;
                     playerMovementProgress = 0f;
                 }
@@ -104,7 +97,7 @@ public class GameDesktopLauncher implements ApplicationListener {
         }
         if (Gdx.input.isKeyPressed(DOWN) || Gdx.input.isKeyPressed(S)) {
             if (isEqual(playerMovementProgress, 1f)) {
-                if (!treeObstacleCoordinates.equals(decrementedY(playerCoordinates))) {
+                if (!tree.getPosition().toGridPoint2().equals(decrementedY(playerCoordinates))) {
                     playerDestinationCoordinates.y--;
                     playerMovementProgress = 0f;
                 }
@@ -113,7 +106,7 @@ public class GameDesktopLauncher implements ApplicationListener {
         }
         if (Gdx.input.isKeyPressed(RIGHT) || Gdx.input.isKeyPressed(D)) {
             if (isEqual(playerMovementProgress, 1f)) {
-                if (!treeObstacleCoordinates.equals(incrementedX(playerCoordinates))) {
+                if (!tree.getPosition().toGridPoint2().equals(incrementedX(playerCoordinates))) {
                     playerDestinationCoordinates.x++;
                     playerMovementProgress = 0f;
                 }
@@ -140,7 +133,7 @@ public class GameDesktopLauncher implements ApplicationListener {
         drawTextureRegionUnscaled(batch, playerGraphics, playerRectangle, playerRotation);
 
         // render tree obstacle
-        drawTextureRegionUnscaled(batch, treeObstacleGraphics, treeObstacleRectangle, 0f);
+        tree.render(batch);
 
         // submit all drawing requests
         batch.end();
@@ -164,7 +157,7 @@ public class GameDesktopLauncher implements ApplicationListener {
     @Override
     public void dispose() {
         // dispose of all the native resources (classes which implement com.badlogic.gdx.utils.Disposable)
-        greenTreeTexture.dispose();
+        tree.dispose();
         blueTankTexture.dispose();
         level.dispose();
         batch.dispose();

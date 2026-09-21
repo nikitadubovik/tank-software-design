@@ -23,7 +23,8 @@ public class Level implements Disposable {
     private final MapRenderer tiledMapRenderer;
     private final TiledMapTileLayer groundLayer;
     private final TileMovement tileMovement;
-    private final List<Tree> obstacles = new ArrayList<>();
+    private final Obstacles obstacles = new Obstacles();
+    private final List<TreeRenderer> treeRenderers = new ArrayList<>();
 
     public Level(String mapPath, Batch batch) {
         this.tiledMap = new TmxMapLoader().load(mapPath);
@@ -33,18 +34,14 @@ public class Level implements Disposable {
     }
 
     public void addObstacle(String texturePath, GridPosition position) {
-        obstacles.add(new Tree(texturePath, position, groundLayer));
+        Tree tree = new Tree(position);
+        obstacles.add(tree);
+        treeRenderers.add(new TreeRenderer(texturePath, tree, groundLayer));
     }
 
-    public boolean isFree(GridPosition position) {
-        for (Tree obstacle : obstacles) {
-            if (obstacle.getPosition().equals(position)) {
-                return false;
-            }
-        }
-        return true;
+    public ObstacleMap getObstacles() {
+        return obstacles;
     }
-
     public void moveBetweenTiles(Rectangle rectangle, GridPosition from, GridPosition to, float progress) {
         tileMovement.moveRectangleBetweenTileCenters(rectangle, from.toGridPoint2(), to.toGridPoint2(), progress);
     }
@@ -54,15 +51,15 @@ public class Level implements Disposable {
     }
 
     public void renderObstacles(Batch batch) {
-        for (Tree obstacle : obstacles) {
-            obstacle.render(batch);
+        for (TreeRenderer renderer : treeRenderers) {
+            renderer.render(batch);
         }
     }
 
     @Override
     public void dispose() {
-        for (Tree obstacle : obstacles) {
-            obstacle.dispose();
+        for (TreeRenderer renderer : treeRenderers) {
+            renderer.dispose();
         }
         tiledMap.dispose();
     }

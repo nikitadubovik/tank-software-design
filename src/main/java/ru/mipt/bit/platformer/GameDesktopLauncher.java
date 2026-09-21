@@ -26,6 +26,8 @@ public class GameDesktopLauncher implements ApplicationListener {
     private Batch batch;
     private Level level;
     private Tank player;
+    private TankRenderer playerRenderer;
+    private InputHandler inputHandler;
 
     @Override
     public void create() {
@@ -34,20 +36,30 @@ public class GameDesktopLauncher implements ApplicationListener {
         level = new Level(LEVEL_MAP, batch);
         level.addObstacle(TREE_TEXTURE, new GridPosition(1, 3));
 
-        player = new Tank(TANK_TEXTURE, new GridPosition(1, 1));
+        player = new Tank(new GridPosition(1, 1));
+        playerRenderer = new TankRenderer(TANK_TEXTURE);
+
+        inputHandler = new InputHandler(new GdxInputSource());
+        inputHandler.bind(UP, W, () -> player.move(Direction.UP, level.getObstacles()));
+        inputHandler.bind(LEFT, A, () -> player.move(Direction.LEFT, level.getObstacles()));
+        inputHandler.bind(DOWN, S, () -> player.move(Direction.DOWN, level.getObstacles()));
+        inputHandler.bind(RIGHT, D, () -> player.move(Direction.RIGHT, level.getObstacles()));
+        // сюда добавится будущий обработчик, например:
+        // inputHandler.bind(SPACE, SPACE, player::shoot);
     }
 
     @Override
     public void render() {
         clearScreen();
 
-        handlePlayerInput();
-        player.update(level, Gdx.graphics.getDeltaTime());
+        inputHandler.update();
+        player.update(Gdx.graphics.getDeltaTime());
+        playerRenderer.update(level, player);
 
         level.render();
 
         batch.begin();
-        player.render(batch);
+        playerRenderer.render(batch, player);
         level.renderObstacles(batch);
         batch.end();
     }
@@ -57,50 +69,27 @@ public class GameDesktopLauncher implements ApplicationListener {
         Gdx.gl.glClear(GL_COLOR_BUFFER_BIT);
     }
 
-    private void handlePlayerInput() {
-        if (isPressed(UP, W)) {
-            player.move(Direction.UP, level);
-        }
-        if (isPressed(LEFT, A)) {
-            player.move(Direction.LEFT, level);
-        }
-        if (isPressed(DOWN, S)) {
-            player.move(Direction.DOWN, level);
-        }
-        if (isPressed(RIGHT, D)) {
-            player.move(Direction.RIGHT, level);
-        }
-    }
-
-    private boolean isPressed(int arrowKey, int letterKey) {
-        return Gdx.input.isKeyPressed(arrowKey) || Gdx.input.isKeyPressed(letterKey);
-    }
-
     @Override
     public void resize(int width, int height) {
-        // окно не масштабируется
     }
 
     @Override
     public void pause() {
-        // игра не ставится на паузу
     }
 
     @Override
     public void resume() {
-        // игра не ставится на паузу
     }
 
     @Override
     public void dispose() {
-        player.dispose();
+        playerRenderer.dispose();
         level.dispose();
         batch.dispose();
     }
 
     public static void main(String[] args) {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
-        // уровень 10 клеток x 128px в ширину, 8 x 128px в высоту
         config.setWindowedMode(1280, 1024);
         new Lwjgl3Application(new GameDesktopLauncher(), config);
     }

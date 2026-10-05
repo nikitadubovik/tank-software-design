@@ -1,6 +1,6 @@
-package ru.mipt.bit.platformer;
+package ru.mipt.bit.platformer.model;
 
-public class Tree {
+public class Tree implements Obstacle {
 
     private final GridPosition position;
 
@@ -10,5 +10,10 @@ public class Tree {
 
     public GridPosition getPosition() {
         return position;
+    }
+
+    @Override
+    public boolean occupies(GridPosition cell) {
+        return position.equals(cell);
     }
 }

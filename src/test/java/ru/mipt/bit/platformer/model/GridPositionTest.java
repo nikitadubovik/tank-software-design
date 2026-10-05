@@ -1,4 +1,4 @@
-package ru.mipt.bit.platformer;
+package ru.mipt.bit.platformer.model;
 
 import org.junit.jupiter.api.Test;
 
@@ -9,38 +9,42 @@ class GridPositionTest {
 
     @Test
     void moveUpIncrementsY() {
-        GridPosition start = new GridPosition(1, 1);
-        assertEquals(new GridPosition(1, 2), start.move(Direction.UP));
+        assertEquals(new GridPosition(1, 2), new GridPosition(1, 1).move(Direction.UP));
     }
 
     @Test
     void moveLeftDecrementsX() {
-        GridPosition start = new GridPosition(1, 1);
-        assertEquals(new GridPosition(0, 1), start.move(Direction.LEFT));
+        assertEquals(new GridPosition(0, 1), new GridPosition(1, 1).move(Direction.LEFT));
     }
 
     @Test
     void moveDownDecrementsY() {
-        GridPosition start = new GridPosition(1, 1);
-        assertEquals(new GridPosition(1, 0), start.move(Direction.DOWN));
+        assertEquals(new GridPosition(1, 0), new GridPosition(1, 1).move(Direction.DOWN));
     }
 
     @Test
     void moveRightIncrementsX() {
-        GridPosition start = new GridPosition(1, 1);
-        assertEquals(new GridPosition(2, 1), start.move(Direction.RIGHT));
+        assertEquals(new GridPosition(2, 1), new GridPosition(1, 1).move(Direction.RIGHT));
     }
 
     @Test
-    void moveDoesNotMutateOriginal() {
+    void moveDoesNotChangeOriginal() {
         GridPosition start = new GridPosition(1, 1);
         start.move(Direction.UP);
         assertEquals(new GridPosition(1, 1), start);
     }
 
     @Test
+    void exposesCoordinates() {
+        GridPosition cell = new GridPosition(3, 4);
+        assertEquals(3, cell.getX());
+        assertEquals(4, cell.getY());
+    }
+
+    @Test
     void equalCoordinatesAreEqual() {
         assertEquals(new GridPosition(3, 4), new GridPosition(3, 4));
+        assertEquals(new GridPosition(3, 4).hashCode(), new GridPosition(3, 4).hashCode());
     }
 
     @Test

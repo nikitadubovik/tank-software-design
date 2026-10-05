@@ -1,29 +1,28 @@
-package ru.mipt.bit.platformer;
+package ru.mipt.bit.platformer.graphics;
 
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.badlogic.gdx.math.Rectangle;
-import com.badlogic.gdx.utils.Disposable;
+import ru.mipt.bit.platformer.model.Tree;
 
 import static ru.mipt.bit.platformer.util.GdxGameUtils.createBoundingRectangle;
 import static ru.mipt.bit.platformer.util.GdxGameUtils.drawTextureRegionUnscaled;
-import static ru.mipt.bit.platformer.util.GdxGameUtils.moveRectangleAtTileCenter;
 
-public class TreeRenderer implements Disposable {
+public class TreeRenderer implements Renderable {
 
     private final Texture texture;
     private final TextureRegion graphics;
     private final Rectangle rectangle;
 
-    public TreeRenderer(String texturePath, Tree tree, TiledMapTileLayer groundLayer) {
+    public TreeRenderer(String texturePath, Tree tree, TileGrid grid) {
         this.texture = new Texture(texturePath);
         this.graphics = new TextureRegion(texture);
         this.rectangle = createBoundingRectangle(graphics);
-        moveRectangleAtTileCenter(groundLayer, rectangle, tree.getPosition().toGridPoint2());
+        grid.placeAtTileCenter(rectangle, tree.getPosition());
     }
 
+    @Override
     public void render(Batch batch) {
         drawTextureRegionUnscaled(batch, graphics, rectangle, 0f);
     }

@@ -1,6 +1,4 @@
-package ru.mipt.bit.platformer;
-
-import com.badlogic.gdx.math.GridPoint2;
+package ru.mipt.bit.platformer.model;
 
 import java.util.Objects;
 
@@ -14,12 +12,16 @@ public final class GridPosition {
         this.y = y;
     }
 
-    public GridPosition move(Direction direction) {
-        return new GridPosition(x + direction.getDeltaX(), y + direction.getDeltaY());
+    public int getX() {
+        return x;
     }
 
-    public GridPoint2 toGridPoint2() {
-        return new GridPoint2(x, y);
+    public int getY() {
+        return y;
+    }
+
+    public GridPosition move(Direction direction) {
+        return new GridPosition(x + direction.getDeltaX(), y + direction.getDeltaY());
     }
 
     @Override
@@ -37,5 +39,10 @@ public final class GridPosition {
     @Override
     public int hashCode() {
         return Objects.hash(x, y);
+    }
+
+    @Override
+    public String toString() {
+        return "(" + x + ", " + y + ")";
     }
 }

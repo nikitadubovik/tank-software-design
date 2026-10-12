@@ -15,12 +15,18 @@ import ru.mipt.bit.platformer.input.InputHandler;
 import ru.mipt.bit.platformer.input.keyboard.GdxKeyboardState;
 import ru.mipt.bit.platformer.input.keyboard.KeyTrigger;
 import ru.mipt.bit.platformer.input.keyboard.KeyboardState;
+import ru.mipt.bit.platformer.level.FileLevelGenerator;
+import ru.mipt.bit.platformer.level.LevelGenerator;
+import ru.mipt.bit.platformer.level.LevelLayout;
+import ru.mipt.bit.platformer.level.RandomLevelGenerator;
 import ru.mipt.bit.platformer.model.Direction;
 import ru.mipt.bit.platformer.model.GridPosition;
 import ru.mipt.bit.platformer.model.ObstacleMap;
 import ru.mipt.bit.platformer.model.Obstacles;
 import ru.mipt.bit.platformer.model.Tank;
 import ru.mipt.bit.platformer.model.Tree;
+
+import java.util.Random;
 
 import static com.badlogic.gdx.Input.Keys.A;
 import static com.badlogic.gdx.Input.Keys.D;
@@ -37,11 +43,22 @@ public class GameDesktopLauncher implements ApplicationListener {
     private static final String TANK_TEXTURE = "images/tank_blue.png";
     private static final String TREE_TEXTURE = "images/greenTree.png";
     private static final float TANK_MOVEMENT_DURATION = 0.4f;
+    private static final String LEVEL_FILE = "level.txt";
+    private static final String RANDOM_LEVEL_ARGUMENT = "random";
+    private static final int FIELD_WIDTH = 10;
+    private static final int FIELD_HEIGHT = 8;
+    private static final int RANDOM_TREE_COUNT = 12;
+
+    private final LevelGenerator levelGenerator;
 
     private Batch batch;
     private Scene scene;
     private Tank player;
     private InputHandler inputHandler;
+
+    public GameDesktopLauncher(LevelGenerator levelGenerator) {
+        this.levelGenerator = levelGenerator;
+    }
 
     @Override
     public void create() {
@@ -49,15 +66,18 @@ public class GameDesktopLauncher implements ApplicationListener {
         LevelRenderer level = new LevelRenderer(LEVEL_MAP, batch, Interpolation.smooth);
         scene = new Scene(batch, level);
 
+        LevelLayout layout = levelGenerator.generate();
         Obstacles obstacles = new Obstacles();
 
-        player = new Tank(new GridPosition(1, 1), TANK_MOVEMENT_DURATION);
+        player = new Tank(layout.getPlayerStart(), TANK_MOVEMENT_DURATION);
         obstacles.add(player);
         scene.add(new TankRenderer(TANK_TEXTURE, player, level));
 
-        Tree tree = new Tree(new GridPosition(1, 3));
-        obstacles.add(tree);
-        scene.add(new TreeRenderer(TREE_TEXTURE, tree, level));
+        for (GridPosition treePosition : layout.getTreePositions()) {
+            Tree tree = new Tree(treePosition);
+            obstacles.add(tree);
+            scene.add(new TreeRenderer(TREE_TEXTURE, tree, level));
+        }
 
         inputHandler = createInputHandler(new GdxKeyboardState(), obstacles);
     }
@@ -99,6 +119,13 @@ public class GameDesktopLauncher implements ApplicationListener {
     public static void main(String[] args) {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
         config.setWindowedMode(1280, 1024);
-        new Lwjgl3Application(new GameDesktopLauncher(), config);
+        new Lwjgl3Application(new GameDesktopLauncher(chooseLevelGenerator(args)), config);
+    }
+
+    private static LevelGenerator chooseLevelGenerator(String[] args) {
+        if (args.length > 0 && RANDOM_LEVEL_ARGUMENT.equals(args[0])) {
+            return new RandomLevelGenerator(FIELD_WIDTH, FIELD_HEIGHT, RANDOM_TREE_COUNT, new Random());
+        }
+        return new FileLevelGenerator(LEVEL_FILE);
     }
 }

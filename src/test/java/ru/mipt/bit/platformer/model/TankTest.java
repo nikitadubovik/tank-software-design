@@ -128,4 +128,47 @@ class TankTest {
     void rejectsNonPositiveMovementDuration() {
         assertThrows(IllegalArgumentException.class, () -> new Tank(new GridPosition(0, 0), 0f));
     }
+
+    @Test
+    void cellBeingLeftStaysOccupiedForOtherTanks() {
+        Tank leaving = new Tank(new GridPosition(1, 1), DURATION);
+        Tank other = new Tank(new GridPosition(0, 1), DURATION);
+        Obstacles obstacles = new Obstacles();
+        obstacles.add(leaving);
+        obstacles.add(other);
+
+        leaving.move(Direction.UP, obstacles);
+        other.move(Direction.RIGHT, obstacles);
+
+        assertFalse(other.isMoving());
+    }
+
+    @Test
+    void cellBeingEnteredIsOccupiedForOtherTanks() {
+        Tank first = new Tank(new GridPosition(1, 1), DURATION);
+        Tank second = new Tank(new GridPosition(1, 3), DURATION);
+        Obstacles obstacles = new Obstacles();
+        obstacles.add(first);
+        obstacles.add(second);
+
+        first.move(Direction.UP, obstacles);
+        second.move(Direction.DOWN, obstacles);
+
+        assertFalse(second.isMoving());
+    }
+
+    @Test
+    void leftCellBecomesFreeAfterArrival() {
+        Tank leaving = new Tank(new GridPosition(1, 1), DURATION);
+        Tank other = new Tank(new GridPosition(0, 1), DURATION);
+        Obstacles obstacles = new Obstacles();
+        obstacles.add(leaving);
+        obstacles.add(other);
+
+        leaving.move(Direction.UP, obstacles);
+        leaving.update(DURATION);
+        other.move(Direction.RIGHT, obstacles);
+
+        assertTrue(other.isMoving());
+    }
 }

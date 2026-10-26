@@ -4,9 +4,13 @@ import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Interpolation;
+import ru.mipt.bit.platformer.command.MoveCommand;
+import ru.mipt.bit.platformer.control.RandomTankController;
+import ru.mipt.bit.platformer.game.GameWorld;
 import ru.mipt.bit.platformer.graphics.LevelRenderer;
 import ru.mipt.bit.platformer.graphics.Scene;
 import ru.mipt.bit.platformer.graphics.TankRenderer;
@@ -18,8 +22,10 @@ import ru.mipt.bit.platformer.input.keyboard.KeyboardState;
 import ru.mipt.bit.platformer.level.FileLevelGenerator;
 import ru.mipt.bit.platformer.level.LevelGenerator;
 import ru.mipt.bit.platformer.level.LevelLayout;
+import ru.mipt.bit.platformer.level.RandomEnemyTanksGenerator;
 import ru.mipt.bit.platformer.level.RandomLevelGenerator;
 import ru.mipt.bit.platformer.model.Direction;
+import ru.mipt.bit.platformer.model.FieldBounds;
 import ru.mipt.bit.platformer.model.GridPosition;
 import ru.mipt.bit.platformer.model.ObstacleMap;
 import ru.mipt.bit.platformer.model.Obstacles;
@@ -43,21 +49,25 @@ public class GameDesktopLauncher implements ApplicationListener {
     private static final String TANK_TEXTURE = "images/tank_blue.png";
     private static final String TREE_TEXTURE = "images/greenTree.png";
     private static final float TANK_MOVEMENT_DURATION = 0.4f;
+    private static final Color PLAYER_TINT = Color.WHITE;
+    private static final Color ENEMY_TINT = new Color(1f, 0.45f, 0.45f, 1f);
     private static final String LEVEL_FILE = "level.txt";
     private static final String RANDOM_LEVEL_ARGUMENT = "random";
     private static final int FIELD_WIDTH = 10;
     private static final int FIELD_HEIGHT = 8;
     private static final int RANDOM_TREE_COUNT = 12;
+    private static final int ENEMY_TANK_COUNT = 4;
 
     private final LevelGenerator levelGenerator;
+    private final Random random;
 
     private Batch batch;
     private Scene scene;
-    private Tank player;
-    private InputHandler inputHandler;
+    private GameWorld world;
 
-    public GameDesktopLauncher(LevelGenerator levelGenerator) {
+    public GameDesktopLauncher(LevelGenerator levelGenerator, Random random) {
         this.levelGenerator = levelGenerator;
+        this.random = random;
     }
 
     @Override
@@ -65,13 +75,11 @@ public class GameDesktopLauncher implements ApplicationListener {
         batch = new SpriteBatch();
         LevelRenderer level = new LevelRenderer(LEVEL_MAP, batch, Interpolation.smooth);
         scene = new Scene(batch, level);
+        world = new GameWorld();
 
         LevelLayout layout = levelGenerator.generate();
         Obstacles obstacles = new Obstacles();
-
-        player = new Tank(layout.getPlayerStart(), TANK_MOVEMENT_DURATION);
-        obstacles.add(player);
-        scene.add(new TankRenderer(TANK_TEXTURE, player, level));
+        obstacles.add(new FieldBounds(layout.getWidth(), layout.getHeight()));
 
         for (GridPosition treePosition : layout.getTreePositions()) {
             Tree tree = new Tree(treePosition);
@@ -79,22 +87,35 @@ public class GameDesktopLauncher implements ApplicationListener {
             scene.add(new TreeRenderer(TREE_TEXTURE, tree, level));
         }
 
-        inputHandler = createInputHandler(new GdxKeyboardState(), obstacles);
+        Tank player = addTank(layout.getPlayerStart(), PLAYER_TINT, obstacles, level);
+        world.addController(createPlayerInput(new GdxKeyboardState(), player, obstacles));
+
+        for (GridPosition enemyPosition : layout.getEnemyTankPositions()) {
+            Tank enemy = addTank(enemyPosition, ENEMY_TINT, obstacles, level);
+            world.addController(new RandomTankController(enemy, obstacles, random));
+        }
     }
 
-    private InputHandler createInputHandler(KeyboardState keyboard, ObstacleMap obstacles) {
+    private Tank addTank(GridPosition position, Color tint, Obstacles obstacles, LevelRenderer level) {
+        Tank tank = new Tank(position, TANK_MOVEMENT_DURATION);
+        obstacles.add(tank);
+        world.addTank(tank);
+        scene.add(new TankRenderer(TANK_TEXTURE, tank, level, tint));
+        return tank;
+    }
+
+    private static InputHandler createPlayerInput(KeyboardState keyboard, Tank player, ObstacleMap obstacles) {
         InputHandler handler = new InputHandler();
-        handler.bind(new KeyTrigger(keyboard, UP, W), () -> player.move(Direction.UP, obstacles));
-        handler.bind(new KeyTrigger(keyboard, LEFT, A), () -> player.move(Direction.LEFT, obstacles));
-        handler.bind(new KeyTrigger(keyboard, DOWN, S), () -> player.move(Direction.DOWN, obstacles));
-        handler.bind(new KeyTrigger(keyboard, RIGHT, D), () -> player.move(Direction.RIGHT, obstacles));
+        handler.bind(new KeyTrigger(keyboard, UP, W), new MoveCommand(player, Direction.UP, obstacles));
+        handler.bind(new KeyTrigger(keyboard, LEFT, A), new MoveCommand(player, Direction.LEFT, obstacles));
+        handler.bind(new KeyTrigger(keyboard, DOWN, S), new MoveCommand(player, Direction.DOWN, obstacles));
+        handler.bind(new KeyTrigger(keyboard, RIGHT, D), new MoveCommand(player, Direction.RIGHT, obstacles));
         return handler;
     }
 
     @Override
     public void render() {
-        inputHandler.update();
-        player.update(Gdx.graphics.getDeltaTime());
+        world.update(Gdx.graphics.getDeltaTime());
         scene.render();
     }
 
@@ -119,12 +140,14 @@ public class GameDesktopLauncher implements ApplicationListener {
     public static void main(String[] args) {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
         config.setWindowedMode(1280, 1024);
-        new Lwjgl3Application(new GameDesktopLauncher(chooseLevelGenerator(args)), config);
+        Random random = new Random();
+        LevelGenerator levelGenerator = new RandomEnemyTanksGenerator(chooseLevelGenerator(args, random), ENEMY_TANK_COUNT, random);
+        new Lwjgl3Application(new GameDesktopLauncher(levelGenerator, random), config);
     }
 
-    private static LevelGenerator chooseLevelGenerator(String[] args) {
+    private static LevelGenerator chooseLevelGenerator(String[] args, Random random) {
         if (args.length > 0 && RANDOM_LEVEL_ARGUMENT.equals(args[0])) {
-            return new RandomLevelGenerator(FIELD_WIDTH, FIELD_HEIGHT, RANDOM_TREE_COUNT, new Random());
+            return new RandomLevelGenerator(FIELD_WIDTH, FIELD_HEIGHT, RANDOM_TREE_COUNT, random);
         }
         return new FileLevelGenerator(LEVEL_FILE);
     }

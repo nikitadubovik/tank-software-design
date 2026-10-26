@@ -4,176 +4,151 @@ import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
-import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.maps.MapRenderer;
-import com.badlogic.gdx.maps.tiled.TiledMap;
-import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
-import com.badlogic.gdx.maps.tiled.TmxMapLoader;
-import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.math.Interpolation;
-import com.badlogic.gdx.math.Rectangle;
-import ru.mipt.bit.platformer.util.TileMovement;
+import ru.mipt.bit.platformer.command.MoveCommand;
+import ru.mipt.bit.platformer.control.RandomTankController;
+import ru.mipt.bit.platformer.game.GameWorld;
+import ru.mipt.bit.platformer.graphics.LevelRenderer;
+import ru.mipt.bit.platformer.graphics.Scene;
+import ru.mipt.bit.platformer.graphics.TankRenderer;
+import ru.mipt.bit.platformer.graphics.TreeRenderer;
+import ru.mipt.bit.platformer.input.InputHandler;
+import ru.mipt.bit.platformer.input.keyboard.GdxKeyboardState;
+import ru.mipt.bit.platformer.input.keyboard.KeyTrigger;
+import ru.mipt.bit.platformer.input.keyboard.KeyboardState;
+import ru.mipt.bit.platformer.level.FileLevelGenerator;
+import ru.mipt.bit.platformer.level.LevelGenerator;
+import ru.mipt.bit.platformer.level.LevelLayout;
+import ru.mipt.bit.platformer.level.RandomEnemyTanksGenerator;
+import ru.mipt.bit.platformer.level.RandomLevelGenerator;
+import ru.mipt.bit.platformer.model.Direction;
+import ru.mipt.bit.platformer.model.FieldBounds;
+import ru.mipt.bit.platformer.model.GridPosition;
+import ru.mipt.bit.platformer.model.ObstacleMap;
+import ru.mipt.bit.platformer.model.Obstacles;
+import ru.mipt.bit.platformer.model.Tank;
+import ru.mipt.bit.platformer.model.Tree;
 
-import static com.badlogic.gdx.Input.Keys.*;
-import static com.badlogic.gdx.graphics.GL20.GL_COLOR_BUFFER_BIT;
-import static com.badlogic.gdx.math.MathUtils.isEqual;
-import static ru.mipt.bit.platformer.util.GdxGameUtils.*;
+import java.util.Random;
+
+import static com.badlogic.gdx.Input.Keys.A;
+import static com.badlogic.gdx.Input.Keys.D;
+import static com.badlogic.gdx.Input.Keys.DOWN;
+import static com.badlogic.gdx.Input.Keys.LEFT;
+import static com.badlogic.gdx.Input.Keys.RIGHT;
+import static com.badlogic.gdx.Input.Keys.S;
+import static com.badlogic.gdx.Input.Keys.UP;
+import static com.badlogic.gdx.Input.Keys.W;
 
 public class GameDesktopLauncher implements ApplicationListener {
 
-    private static final float MOVEMENT_SPEED = 0.4f;
+    private static final String LEVEL_MAP = "level.tmx";
+    private static final String TANK_TEXTURE = "images/tank_blue.png";
+    private static final String TREE_TEXTURE = "images/greenTree.png";
+    private static final float TANK_MOVEMENT_DURATION = 0.4f;
+    private static final Color PLAYER_TINT = Color.WHITE;
+    private static final Color ENEMY_TINT = new Color(1f, 0.45f, 0.45f, 1f);
+    private static final String LEVEL_FILE = "level.txt";
+    private static final String RANDOM_LEVEL_ARGUMENT = "random";
+    private static final int FIELD_WIDTH = 10;
+    private static final int FIELD_HEIGHT = 8;
+    private static final int RANDOM_TREE_COUNT = 12;
+    private static final int ENEMY_TANK_COUNT = 4;
+
+    private final LevelGenerator levelGenerator;
+    private final Random random;
 
     private Batch batch;
+    private Scene scene;
+    private GameWorld world;
 
-    private TiledMap level;
-    private MapRenderer levelRenderer;
-    private TileMovement tileMovement;
-
-    private Texture blueTankTexture;
-    private TextureRegion playerGraphics;
-    private Rectangle playerRectangle;
-    // player current position coordinates on level 10x8 grid (e.g. x=0, y=1)
-    private GridPoint2 playerCoordinates;
-    // which tile the player want to go next
-    private GridPoint2 playerDestinationCoordinates;
-    private float playerMovementProgress = 1f;
-    private float playerRotation;
-
-    private Texture greenTreeTexture;
-    private TextureRegion treeObstacleGraphics;
-    private GridPoint2 treeObstacleCoordinates = new GridPoint2();
-    private Rectangle treeObstacleRectangle = new Rectangle();
+    public GameDesktopLauncher(LevelGenerator levelGenerator, Random random) {
+        this.levelGenerator = levelGenerator;
+        this.random = random;
+    }
 
     @Override
     public void create() {
         batch = new SpriteBatch();
+        LevelRenderer level = new LevelRenderer(LEVEL_MAP, batch, Interpolation.smooth);
+        scene = new Scene(batch, level);
+        world = new GameWorld();
 
-        // load level tiles
-        level = new TmxMapLoader().load("level.tmx");
-        levelRenderer = createSingleLayerMapRenderer(level, batch);
-        TiledMapTileLayer groundLayer = getSingleLayer(level);
-        tileMovement = new TileMovement(groundLayer, Interpolation.smooth);
+        LevelLayout layout = levelGenerator.generate();
+        Obstacles obstacles = new Obstacles();
+        obstacles.add(new FieldBounds(layout.getWidth(), layout.getHeight()));
 
-        // Texture decodes an image file and loads it into GPU memory, it represents a native resource
-        blueTankTexture = new Texture("images/tank_blue.png");
-        // TextureRegion represents Texture portion, there may be many TextureRegion instances of the same Texture
-        playerGraphics = new TextureRegion(blueTankTexture);
-        playerRectangle = createBoundingRectangle(playerGraphics);
-        // set player initial position
-        playerDestinationCoordinates = new GridPoint2(1, 1);
-        playerCoordinates = new GridPoint2(playerDestinationCoordinates);
-        playerRotation = 0f;
+        for (GridPosition treePosition : layout.getTreePositions()) {
+            Tree tree = new Tree(treePosition);
+            obstacles.add(tree);
+            scene.add(new TreeRenderer(TREE_TEXTURE, tree, level));
+        }
 
-        greenTreeTexture = new Texture("images/greenTree.png");
-        treeObstacleGraphics = new TextureRegion(greenTreeTexture);
-        treeObstacleCoordinates = new GridPoint2(1, 3);
-        treeObstacleRectangle = createBoundingRectangle(treeObstacleGraphics);
-        moveRectangleAtTileCenter(groundLayer, treeObstacleRectangle, treeObstacleCoordinates);
+        Tank player = addTank(layout.getPlayerStart(), PLAYER_TINT, obstacles, level);
+        world.addController(createPlayerInput(new GdxKeyboardState(), player, obstacles));
+
+        for (GridPosition enemyPosition : layout.getEnemyTankPositions()) {
+            Tank enemy = addTank(enemyPosition, ENEMY_TINT, obstacles, level);
+            world.addController(new RandomTankController(enemy, obstacles, random));
+        }
+    }
+
+    private Tank addTank(GridPosition position, Color tint, Obstacles obstacles, LevelRenderer level) {
+        Tank tank = new Tank(position, TANK_MOVEMENT_DURATION);
+        obstacles.add(tank);
+        world.addTank(tank);
+        scene.add(new TankRenderer(TANK_TEXTURE, tank, level, tint));
+        return tank;
+    }
+
+    private static InputHandler createPlayerInput(KeyboardState keyboard, Tank player, ObstacleMap obstacles) {
+        InputHandler handler = new InputHandler();
+        handler.bind(new KeyTrigger(keyboard, UP, W), new MoveCommand(player, Direction.UP, obstacles));
+        handler.bind(new KeyTrigger(keyboard, LEFT, A), new MoveCommand(player, Direction.LEFT, obstacles));
+        handler.bind(new KeyTrigger(keyboard, DOWN, S), new MoveCommand(player, Direction.DOWN, obstacles));
+        handler.bind(new KeyTrigger(keyboard, RIGHT, D), new MoveCommand(player, Direction.RIGHT, obstacles));
+        return handler;
     }
 
     @Override
     public void render() {
-        // clear the screen
-        Gdx.gl.glClearColor(0f, 0f, 0.2f, 1f);
-        Gdx.gl.glClear(GL_COLOR_BUFFER_BIT);
-
-        // get time passed since the last render
-        float deltaTime = Gdx.graphics.getDeltaTime();
-
-        if (Gdx.input.isKeyPressed(UP) || Gdx.input.isKeyPressed(W)) {
-            if (isEqual(playerMovementProgress, 1f)) {
-                // check potential player destination for collision with obstacles
-                if (!treeObstacleCoordinates.equals(incrementedY(playerCoordinates))) {
-                    playerDestinationCoordinates.y++;
-                    playerMovementProgress = 0f;
-                }
-                playerRotation = 90f;
-            }
-        }
-        if (Gdx.input.isKeyPressed(LEFT) || Gdx.input.isKeyPressed(A)) {
-            if (isEqual(playerMovementProgress, 1f)) {
-                if (!treeObstacleCoordinates.equals(decrementedX(playerCoordinates))) {
-                    playerDestinationCoordinates.x--;
-                    playerMovementProgress = 0f;
-                }
-                playerRotation = -180f;
-            }
-        }
-        if (Gdx.input.isKeyPressed(DOWN) || Gdx.input.isKeyPressed(S)) {
-            if (isEqual(playerMovementProgress, 1f)) {
-                if (!treeObstacleCoordinates.equals(decrementedY(playerCoordinates))) {
-                    playerDestinationCoordinates.y--;
-                    playerMovementProgress = 0f;
-                }
-                playerRotation = -90f;
-            }
-        }
-        if (Gdx.input.isKeyPressed(RIGHT) || Gdx.input.isKeyPressed(D)) {
-            if (isEqual(playerMovementProgress, 1f)) {
-                if (!treeObstacleCoordinates.equals(incrementedX(playerCoordinates))) {
-                    playerDestinationCoordinates.x++;
-                    playerMovementProgress = 0f;
-                }
-                playerRotation = 0f;
-            }
-        }
-
-        // calculate interpolated player screen coordinates
-        tileMovement.moveRectangleBetweenTileCenters(playerRectangle, playerCoordinates, playerDestinationCoordinates, playerMovementProgress);
-
-        playerMovementProgress = continueProgress(playerMovementProgress, deltaTime, MOVEMENT_SPEED);
-        if (isEqual(playerMovementProgress, 1f)) {
-            // record that the player has reached his/her destination
-            playerCoordinates.set(playerDestinationCoordinates);
-        }
-
-        // render each tile of the level
-        levelRenderer.render();
-
-        // start recording all drawing commands
-        batch.begin();
-
-        // render player
-        drawTextureRegionUnscaled(batch, playerGraphics, playerRectangle, playerRotation);
-
-        // render tree obstacle
-        drawTextureRegionUnscaled(batch, treeObstacleGraphics, treeObstacleRectangle, 0f);
-
-        // submit all drawing requests
-        batch.end();
+        world.update(Gdx.graphics.getDeltaTime());
+        scene.render();
     }
 
     @Override
     public void resize(int width, int height) {
-        // do not react to window resizing
     }
 
     @Override
     public void pause() {
-        // game doesn't get paused
     }
 
     @Override
     public void resume() {
-        // game doesn't get paused
     }
 
     @Override
     public void dispose() {
-        // dispose of all the native resources (classes which implement com.badlogic.gdx.utils.Disposable)
-        greenTreeTexture.dispose();
-        blueTankTexture.dispose();
-        level.dispose();
+        scene.dispose();
         batch.dispose();
     }
 
     public static void main(String[] args) {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
-        // level width: 10 tiles x 128px, height: 8 tiles x 128px
         config.setWindowedMode(1280, 1024);
-        new Lwjgl3Application(new GameDesktopLauncher(), config);
+        Random random = new Random();
+        LevelGenerator levelGenerator = new RandomEnemyTanksGenerator(chooseLevelGenerator(args, random), ENEMY_TANK_COUNT, random);
+        new Lwjgl3Application(new GameDesktopLauncher(levelGenerator, random), config);
+    }
+
+    private static LevelGenerator chooseLevelGenerator(String[] args, Random random) {
+        if (args.length > 0 && RANDOM_LEVEL_ARGUMENT.equals(args[0])) {
+            return new RandomLevelGenerator(FIELD_WIDTH, FIELD_HEIGHT, RANDOM_TREE_COUNT, random);
+        }
+        return new FileLevelGenerator(LEVEL_FILE);
     }
 }

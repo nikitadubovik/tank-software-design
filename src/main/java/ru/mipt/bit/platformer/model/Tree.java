@@ -1,6 +1,6 @@
 package ru.mipt.bit.platformer.model;
 
-public class Tree implements Obstacle {
+public class Tree implements GameObject {
 
     private final GridPosition position;
 
@@ -15,5 +15,9 @@ public class Tree implements Obstacle {
     @Override
     public boolean occupies(GridPosition cell) {
         return position.equals(cell);
+    }
+
+    @Override
+    public void live(float deltaTime) {
     }
 }

@@ -2,18 +2,18 @@ package ru.mipt.bit.platformer.game;
 
 import ru.mipt.bit.platformer.command.Command;
 import ru.mipt.bit.platformer.control.Controller;
-import ru.mipt.bit.platformer.model.Tank;
+import ru.mipt.bit.platformer.model.GameLevel;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class GameWorld {
 
-    private final List<Tank> tanks = new ArrayList<>();
+    private final GameLevel level;
     private final List<Controller> controllers = new ArrayList<>();
 
-    public void addTank(Tank tank) {
-        tanks.add(tank);
+    public GameWorld(GameLevel level) {
+        this.level = level;
     }
 
     public void addController(Controller controller) {
@@ -21,13 +21,13 @@ public class GameWorld {
     }
 
     public void update(float deltaTime) {
+        List<Command> commands = new ArrayList<>();
         for (Controller controller : controllers) {
-            for (Command command : controller.nextCommands()) {
-                command.execute();
-            }
+            commands.addAll(controller.nextCommands());
         }
-        for (Tank tank : tanks) {
-            tank.update(deltaTime);
+        for (Command command : commands) {
+            command.execute();
         }
+        level.tick(deltaTime);
     }
 }

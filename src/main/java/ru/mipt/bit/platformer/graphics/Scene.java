@@ -3,25 +3,35 @@ package ru.mipt.bit.platformer.graphics;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.utils.Disposable;
+import ru.mipt.bit.platformer.model.GameObject;
+import ru.mipt.bit.platformer.model.LevelListener;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static com.badlogic.gdx.graphics.GL20.GL_COLOR_BUFFER_BIT;
 
-public class Scene implements Disposable {
+public class Scene implements LevelListener, Disposable {
 
     private final Batch batch;
     private final LevelRenderer level;
-    private final List<Renderable> renderables = new ArrayList<>();
+    private final RendererFactory factory;
+    private final Map<GameObject, Renderable> renderables = new LinkedHashMap<>();
 
-    public Scene(Batch batch, LevelRenderer level) {
+    public Scene(Batch batch, LevelRenderer level, RendererFactory factory) {
         this.batch = batch;
         this.level = level;
+        this.factory = factory;
     }
 
-    public void add(Renderable renderable) {
-        renderables.add(renderable);
+    @Override
+    public void onObjectAdded(GameObject object) {
+        renderables.put(object, factory.create(object));
+    }
+
+    @Override
+    public void onObjectRemoved(GameObject object) {
+        renderables.remove(object);
     }
 
     public void render() {
@@ -31,7 +41,7 @@ public class Scene implements Disposable {
         level.render();
 
         batch.begin();
-        for (Renderable renderable : renderables) {
+        for (Renderable renderable : renderables.values()) {
             renderable.render(batch);
         }
         batch.end();
@@ -39,9 +49,8 @@ public class Scene implements Disposable {
 
     @Override
     public void dispose() {
-        for (Renderable renderable : renderables) {
-            renderable.dispose();
-        }
+        renderables.clear();
+        factory.dispose();
         level.dispose();
     }
 }

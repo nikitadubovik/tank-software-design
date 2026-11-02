@@ -50,9 +50,9 @@ class MoveCommandTest {
         MoveCommand moveUp = new MoveCommand(tank, Direction.UP, EVERYTHING_FREE);
 
         moveUp.execute();
-        tank.update(0.4f);
+        tank.live(0.4f);
         moveUp.execute();
-        tank.update(0.4f);
+        tank.live(0.4f);
 
         assertEquals(new GridPosition(1, 3), tank.getPosition());
     }

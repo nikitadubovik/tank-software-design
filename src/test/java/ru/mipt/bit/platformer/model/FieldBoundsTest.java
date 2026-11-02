@@ -33,12 +33,11 @@ class FieldBoundsTest {
 
     @Test
     void tankStopsAtTheEdgeLikeAtAnObstacle() {
+        GameLevel level = new GameLevel(10, 8);
         Tank tank = new Tank(new GridPosition(0, 0), 0.4f);
-        Obstacles obstacles = new Obstacles();
-        obstacles.add(bounds);
-        obstacles.add(tank);
+        level.add(tank);
 
-        tank.move(Direction.LEFT, obstacles);
+        tank.move(Direction.LEFT, level);
 
         assertFalse(tank.isMoving());
         assertEquals(Direction.LEFT, tank.getDirection());

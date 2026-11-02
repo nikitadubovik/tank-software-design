@@ -4,17 +4,18 @@ import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
-import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Interpolation;
+import org.awesome.ai.strategy.NotRecommendingAI;
+import ru.mipt.bit.platformer.ai.RecommendationController;
 import ru.mipt.bit.platformer.command.MoveCommand;
+import ru.mipt.bit.platformer.command.ShootCommand;
 import ru.mipt.bit.platformer.control.RandomTankController;
 import ru.mipt.bit.platformer.game.GameWorld;
 import ru.mipt.bit.platformer.graphics.LevelRenderer;
+import ru.mipt.bit.platformer.graphics.RendererFactory;
 import ru.mipt.bit.platformer.graphics.Scene;
-import ru.mipt.bit.platformer.graphics.TankRenderer;
-import ru.mipt.bit.platformer.graphics.TreeRenderer;
 import ru.mipt.bit.platformer.input.InputHandler;
 import ru.mipt.bit.platformer.input.keyboard.GdxKeyboardState;
 import ru.mipt.bit.platformer.input.keyboard.KeyTrigger;
@@ -25,10 +26,8 @@ import ru.mipt.bit.platformer.level.LevelLayout;
 import ru.mipt.bit.platformer.level.RandomEnemyTanksGenerator;
 import ru.mipt.bit.platformer.level.RandomLevelGenerator;
 import ru.mipt.bit.platformer.model.Direction;
-import ru.mipt.bit.platformer.model.FieldBounds;
+import ru.mipt.bit.platformer.model.GameLevel;
 import ru.mipt.bit.platformer.model.GridPosition;
-import ru.mipt.bit.platformer.model.ObstacleMap;
-import ru.mipt.bit.platformer.model.Obstacles;
 import ru.mipt.bit.platformer.model.Tank;
 import ru.mipt.bit.platformer.model.Tree;
 
@@ -40,17 +39,14 @@ import static com.badlogic.gdx.Input.Keys.DOWN;
 import static com.badlogic.gdx.Input.Keys.LEFT;
 import static com.badlogic.gdx.Input.Keys.RIGHT;
 import static com.badlogic.gdx.Input.Keys.S;
+import static com.badlogic.gdx.Input.Keys.SPACE;
 import static com.badlogic.gdx.Input.Keys.UP;
 import static com.badlogic.gdx.Input.Keys.W;
 
 public class GameDesktopLauncher implements ApplicationListener {
 
     private static final String LEVEL_MAP = "level.tmx";
-    private static final String TANK_TEXTURE = "images/tank_blue.png";
-    private static final String TREE_TEXTURE = "images/greenTree.png";
     private static final float TANK_MOVEMENT_DURATION = 0.4f;
-    private static final Color PLAYER_TINT = Color.WHITE;
-    private static final Color ENEMY_TINT = new Color(1f, 0.45f, 0.45f, 1f);
     private static final String LEVEL_FILE = "level.txt";
     private static final String RANDOM_LEVEL_ARGUMENT = "random";
     private static final int FIELD_WIDTH = 10;
@@ -73,43 +69,39 @@ public class GameDesktopLauncher implements ApplicationListener {
     @Override
     public void create() {
         batch = new SpriteBatch();
-        LevelRenderer level = new LevelRenderer(LEVEL_MAP, batch, Interpolation.smooth);
-        scene = new Scene(batch, level);
-        world = new GameWorld();
-
         LevelLayout layout = levelGenerator.generate();
-        Obstacles obstacles = new Obstacles();
-        obstacles.add(new FieldBounds(layout.getWidth(), layout.getHeight()));
+        GameLevel gameLevel = new GameLevel(layout.getWidth(), layout.getHeight());
+        Tank player = new Tank(layout.getPlayerStart(), TANK_MOVEMENT_DURATION);
+
+        LevelRenderer levelRenderer = new LevelRenderer(LEVEL_MAP, batch, Interpolation.smooth);
+        scene = new Scene(batch, levelRenderer, new RendererFactory(levelRenderer, player));
+        gameLevel.addListener(scene);
+
+        world = new GameWorld(gameLevel);
 
         for (GridPosition treePosition : layout.getTreePositions()) {
-            Tree tree = new Tree(treePosition);
-            obstacles.add(tree);
-            scene.add(new TreeRenderer(TREE_TEXTURE, tree, level));
+            gameLevel.add(new Tree(treePosition));
         }
 
-        Tank player = addTank(layout.getPlayerStart(), PLAYER_TINT, obstacles, level);
-        world.addController(createPlayerInput(new GdxKeyboardState(), player, obstacles));
+        gameLevel.add(player);
+        world.addController(createPlayerInput(new GdxKeyboardState(), player, gameLevel));
 
         for (GridPosition enemyPosition : layout.getEnemyTankPositions()) {
-            Tank enemy = addTank(enemyPosition, ENEMY_TINT, obstacles, level);
-            world.addController(new RandomTankController(enemy, obstacles, random));
+            Tank enemy = new Tank(enemyPosition, TANK_MOVEMENT_DURATION);
+            gameLevel.add(enemy);
+            world.addController(new RandomTankController(enemy, gameLevel, random));
         }
+
+        world.addController(new RecommendationController(new NotRecommendingAI(), gameLevel, player));
     }
 
-    private Tank addTank(GridPosition position, Color tint, Obstacles obstacles, LevelRenderer level) {
-        Tank tank = new Tank(position, TANK_MOVEMENT_DURATION);
-        obstacles.add(tank);
-        world.addTank(tank);
-        scene.add(new TankRenderer(TANK_TEXTURE, tank, level, tint));
-        return tank;
-    }
-
-    private static InputHandler createPlayerInput(KeyboardState keyboard, Tank player, ObstacleMap obstacles) {
+    private static InputHandler createPlayerInput(KeyboardState keyboard, Tank player, GameLevel level) {
         InputHandler handler = new InputHandler();
-        handler.bind(new KeyTrigger(keyboard, UP, W), new MoveCommand(player, Direction.UP, obstacles));
-        handler.bind(new KeyTrigger(keyboard, LEFT, A), new MoveCommand(player, Direction.LEFT, obstacles));
-        handler.bind(new KeyTrigger(keyboard, DOWN, S), new MoveCommand(player, Direction.DOWN, obstacles));
-        handler.bind(new KeyTrigger(keyboard, RIGHT, D), new MoveCommand(player, Direction.RIGHT, obstacles));
+        handler.bind(new KeyTrigger(keyboard, UP, W), new MoveCommand(player, Direction.UP, level));
+        handler.bind(new KeyTrigger(keyboard, LEFT, A), new MoveCommand(player, Direction.LEFT, level));
+        handler.bind(new KeyTrigger(keyboard, DOWN, S), new MoveCommand(player, Direction.DOWN, level));
+        handler.bind(new KeyTrigger(keyboard, RIGHT, D), new MoveCommand(player, Direction.RIGHT, level));
+        handler.bind(new KeyTrigger(keyboard, SPACE), new ShootCommand(player, level));
         return handler;
     }
 

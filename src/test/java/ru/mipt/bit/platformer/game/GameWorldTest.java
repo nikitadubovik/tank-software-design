@@ -3,6 +3,7 @@ package ru.mipt.bit.platformer.game;
 import org.junit.jupiter.api.Test;
 import ru.mipt.bit.platformer.command.Command;
 import ru.mipt.bit.platformer.command.MoveCommand;
+import ru.mipt.bit.platformer.command.ShootCommand;
 import ru.mipt.bit.platformer.control.RandomTankController;
 import ru.mipt.bit.platformer.model.Bullet;
 import ru.mipt.bit.platformer.model.Direction;
@@ -98,5 +99,39 @@ class GameWorldTest {
     private static void assertInside(GridPosition cell, int width, int height) {
         assertTrue(cell.getX() >= 0 && cell.getX() < width && cell.getY() >= 0 && cell.getY() < height,
                 "объект вне поля: " + cell);
+    }
+
+    @Test
+    void pointBlankShotHitsTargetThatIsOrderedToLeave() {
+        GameLevel level = new GameLevel(10, 8);
+        GameWorld world = new GameWorld(level);
+        Tank shooter = new Tank(new GridPosition(1, 1), DURATION);
+        Tank target = new Tank(new GridPosition(2, 1), DURATION);
+        level.add(shooter);
+        level.add(target);
+        world.addController(() -> Collections.singletonList(new ShootCommand(shooter, level)));
+        world.addController(() -> Collections.singletonList(new MoveCommand(target, Direction.UP, level)));
+
+        world.update(DURATION);
+
+        assertEquals(target.getMaxHealth() - 25, target.getHealth());
+        assertEquals(new GridPosition(2, 2), target.getPosition());
+    }
+
+    @Test
+    void pointBlankShotHitsTargetThatHasAlreadyStartedToLeave() {
+        GameLevel level = new GameLevel(10, 8);
+        GameWorld world = new GameWorld(level);
+        Tank shooter = new Tank(new GridPosition(1, 1), DURATION);
+        Tank target = new Tank(new GridPosition(2, 1), DURATION);
+        level.add(shooter);
+        level.add(target);
+        world.addController(() -> Collections.singletonList(new MoveCommand(target, Direction.UP, level)));
+        world.addController(() -> Collections.singletonList(new ShootCommand(shooter, level)));
+
+        world.update(DURATION);
+
+        assertEquals(target.getMaxHealth() - 25, target.getHealth());
+        assertEquals(new GridPosition(2, 2), target.getPosition());
     }
 }

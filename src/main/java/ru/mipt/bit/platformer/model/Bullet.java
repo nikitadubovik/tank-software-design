@@ -45,11 +45,15 @@ public class Bullet implements GameObject {
         return position.equals(cell) || destination.equals(cell);
     }
 
+    public boolean resolveContact() {
+        Optional<GameObject> collision = objectInOwnCells();
+        collision.ifPresent(this::hit);
+        return collision.isPresent();
+    }
+
     @Override
     public void live(float deltaTime) {
-        Optional<GameObject> collision = objectInOwnCells();
-        if (collision.isPresent()) {
-            hit(collision.get());
+        if (resolveContact()) {
             return;
         }
 

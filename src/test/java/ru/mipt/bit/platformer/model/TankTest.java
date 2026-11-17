@@ -168,10 +168,76 @@ class TankTest {
         level.add(tank);
 
         tank.shoot(level);
-        tank.live(0.5f);
+        for (int i = 0; i < 10; i++) {
+            level.tick(0.1f);
+        }
         tank.shoot(level);
 
-        assertEquals(2, bullets(level));
+        assertFalse(tank.isReloading() && bullets(level) == 0);
+        assertEquals(1, bullets(level));
+    }
+
+    @Test
+    void shotAtAdjacentTankHitsItImmediately() {
+        GameLevel level = new GameLevel(10, 8);
+        Tank shooter = tank(1, 1);
+        Tank target = tank(2, 1);
+        level.add(shooter);
+        level.add(target);
+
+        shooter.shoot(level);
+
+        assertEquals(1, target.getHealth());
+        assertEquals(0, bullets(level));
+    }
+
+    @Test
+    void shotAtAdjacentTankHitsItEvenIfItIsLeaving() {
+        GameLevel level = new GameLevel(10, 8);
+        Tank shooter = tank(1, 1);
+        Tank target = tank(2, 1);
+        level.add(shooter);
+        level.add(target);
+        target.move(Direction.UP, level);
+
+        shooter.shoot(level);
+        level.tick(DURATION);
+
+        assertEquals(1, target.getHealth());
+    }
+
+    @Test
+    void shotAtAdjacentTreeLeavesNoBullet() {
+        GameLevel level = new GameLevel(10, 8);
+        Tank shooter = tank(1, 1);
+        Tree tree = new Tree(new GridPosition(2, 1));
+        level.add(shooter);
+        level.add(tree);
+
+        shooter.shoot(level);
+
+        assertEquals(0, bullets(level));
+        assertTrue(level.contains(tree));
+    }
+
+    @Test
+    void maxHealthIsInitialHealth() {
+        GameLevel level = new GameLevel(10, 8);
+        Tank tank = new Tank(new GridPosition(1, 1), DURATION, 90, BULLET, 0.5f);
+        level.add(tank);
+
+        tank.onHit(30, level);
+
+        assertEquals(60, tank.getHealth());
+        assertEquals(90, tank.getMaxHealth());
+    }
+
+    @Test
+    void hasHundredHealthByDefault() {
+        Tank tank = new Tank(new GridPosition(1, 1), DURATION);
+
+        assertEquals(100, tank.getHealth());
+        assertEquals(100, tank.getMaxHealth());
     }
 
     @Test

@@ -1,14 +1,15 @@
 package ru.mipt.bit.platformer.model;
 
-public class Tank implements GameObject {
+public class Tank implements GameObject, Damageable {
 
-    private static final int DEFAULT_HEALTH = 2;
-    private static final BulletSettings DEFAULT_BULLET = new BulletSettings(1, 0.1f);
+    private static final int DEFAULT_HEALTH = 100;
+    private static final BulletSettings DEFAULT_BULLET = new BulletSettings(25, 0.1f);
     private static final float DEFAULT_RELOAD_DURATION = 0.5f;
 
     private final float movementDuration;
     private final BulletSettings bulletSettings;
     private final float reloadDuration;
+    private final int maxHealth;
 
     private GridPosition position;
     private GridPosition destination;
@@ -36,6 +37,7 @@ public class Tank implements GameObject {
         this.destination = initialPosition;
         this.movementDuration = movementDuration;
         this.health = health;
+        this.maxHealth = health;
         this.bulletSettings = bulletSettings;
         this.reloadDuration = reloadDuration;
     }
@@ -56,8 +58,14 @@ public class Tank implements GameObject {
         return direction;
     }
 
+    @Override
     public int getHealth() {
         return health;
+    }
+
+    @Override
+    public int getMaxHealth() {
+        return maxHealth;
     }
 
     public boolean isDestroyed() {
@@ -96,7 +104,9 @@ public class Tank implements GameObject {
         reloadLeft = reloadDuration;
         GridPosition start = position.move(direction);
         if (level.isInside(start)) {
-            level.add(new Bullet(level, start, direction, bulletSettings));
+            Bullet bullet = new Bullet(level, start, direction, bulletSettings);
+            level.add(bullet);
+            bullet.resolveContact();
         }
     }
 

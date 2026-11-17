@@ -9,7 +9,7 @@ import ru.mipt.bit.platformer.model.Tank;
 import static ru.mipt.bit.platformer.util.GdxGameUtils.createBoundingRectangle;
 import static ru.mipt.bit.platformer.util.GdxGameUtils.drawTextureRegionUnscaled;
 
-public class TankRenderer implements Renderable {
+public class TankRenderer implements BoundedRenderable {
 
     private final Tank tank;
     private final TileGrid grid;
@@ -23,6 +23,11 @@ public class TankRenderer implements Renderable {
         this.graphics = graphics;
         this.rectangle = createBoundingRectangle(graphics);
         this.tint = tint;
+    }
+
+    @Override
+    public Rectangle getBounds() {
+        return rectangle;
     }
 
     @Override

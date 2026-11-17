@@ -165,4 +165,27 @@ class BulletTest {
         assertThrows(IllegalArgumentException.class, () -> new BulletSettings(-1, CELL));
         assertThrows(IllegalArgumentException.class, () -> new BulletSettings(1, 0f));
     }
+
+    @Test
+    void resolveContactHitsObjectInItsCell() {
+        GameLevel level = new GameLevel(10, 8);
+        Tank target = tank(2, 1);
+        Bullet bullet = new Bullet(level, new GridPosition(2, 1), Direction.RIGHT, SETTINGS);
+        level.add(target);
+        level.add(bullet);
+
+        assertTrue(bullet.resolveContact());
+        assertFalse(level.contains(bullet));
+        assertEquals(1, target.getHealth());
+    }
+
+    @Test
+    void resolveContactDoesNothingInFreeCell() {
+        GameLevel level = new GameLevel(10, 8);
+        Bullet bullet = new Bullet(level, new GridPosition(2, 1), Direction.RIGHT, SETTINGS);
+        level.add(bullet);
+
+        assertFalse(bullet.resolveContact());
+        assertTrue(level.contains(bullet));
+    }
 }

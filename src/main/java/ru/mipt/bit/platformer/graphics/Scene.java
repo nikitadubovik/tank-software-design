@@ -50,7 +50,6 @@ public class Scene implements LevelListener, Disposable {
     @Override
     public void dispose() {
         renderables.clear();
-        factory.dispose();
         level.dispose();
     }
 }
